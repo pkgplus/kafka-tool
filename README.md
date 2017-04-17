@@ -7,7 +7,7 @@ go get github.com/xuebing1110/kafka-tool
 ```
 
 ### Install from binary
-[download](www.baidu.com)
+[download](http://download.bingbaba.com/kafka-tool/)
 
 ## Usage
 ```bash
