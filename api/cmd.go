@@ -10,6 +10,7 @@ const (
 	CMD_CONSUMER    = "consumer"
 	CMD_COPY        = "copy"
 	CMD_RESETOFFSET = "resetOffset"
+	CMD_OFFSET      = "offset"
 )
 
 var (
@@ -58,6 +59,8 @@ func (k *KafkaTool) Start() (err error) {
 		err = k.StartTopicCopy()
 	case CMD_RESETOFFSET:
 		err = k.SetOffsetToNewest()
+	case CMD_OFFSET:
+		err = k.GetNewestOffset()
 	default:
 		err = errors.New("unknown command: " + k.Command)
 	}
@@ -75,6 +78,7 @@ func (k *KafkaTool) StartKafkaConsumer() (err error) {
 	if err != nil {
 		return
 	}
+	defer k.consumer.Close()
 
 	return StartConsumer(k.consumer, k.Topic, k.Partition, k.filterReg, k.Begin)
 }
@@ -94,6 +98,8 @@ func (k *KafkaTool) StartTopicCopy() (err error) {
 	if err != nil {
 		return
 	}
+	defer k.consumer.Close()
+	defer k.producer.Close()
 
 	//start
 	err = StartTopicCopy(k.consumer, k.producer, k.Topic, k.DstTopic, k.IfPrint, k.filterReg, k.Begin)
@@ -113,4 +119,12 @@ func (k *KafkaTool) SetOffsetToNewest() error {
 	}
 
 	return SetOffsetToNewest(k.Brokers, k.Group, k.Topic)
+}
+
+func (k *KafkaTool) GetNewestOffset() error {
+	if len(k.Brokers) == 0 || k.Topic == "" {
+		return ERR_MISSING_HOST
+	}
+
+	return GetNewestOffset(k.Brokers, k.Group, k.Topic)
 }

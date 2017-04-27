@@ -6,6 +6,48 @@ import (
 	"log"
 )
 
+func GetNewestOffset(brokers []string, group, topic string) error {
+	client, client_err := cluster.NewClient(brokers, nil)
+	if client_err != nil {
+		return client_err
+	}
+	defer client.Close()
+
+	//get partitions
+	parts, err := client.Partitions(topic)
+	if err != nil {
+		log.Printf("read %s partitions error:%v\n", topic, err)
+		return err
+	}
+	for _, pid := range parts {
+		broker, err := client.Leader(topic, pid)
+		if err != nil {
+			log.Printf("get %s[%d] broker error:%v\n", topic, pid, err)
+			continue
+		}
+
+		//get newest offset
+		oRequest := new(sarama.OffsetRequest)
+		oRequest.AddBlock(topic, pid, sarama.OffsetNewest, 1)
+		oResp, err := broker.GetAvailableOffsets(oRequest)
+		if err != nil {
+			log.Printf("get %s[%d] newest offset error:%v\n", topic, pid, err)
+			continue
+		}
+		if oResp == nil {
+			log.Printf("the %s[%d] newest offset response is null!\n", topic, pid)
+			continue
+		}
+
+		//dump response
+		for pid, block := range oResp.Blocks[topic] {
+			log.Printf("%s\t%d\t%d\n", topic, pid, block.Offsets[0])
+		}
+	}
+
+	return nil
+}
+
 func SetOffsetToNewest(brokers []string, group, topic string) error {
 	// Init kafka client
 	config := cluster.NewConfig()
@@ -14,12 +56,14 @@ func SetOffsetToNewest(brokers []string, group, topic string) error {
 	if client_err != nil {
 		return client_err
 	}
+	defer kafka_client.Close()
 
 	//init cluster consumer with group
 	cconsumer, err := cluster.NewConsumerFromClient(kafka_client, group, []string{topic})
 	if err != nil {
 		return err
 	}
+	defer cconsumer.Close()
 	go func() {
 		for note := range cconsumer.Notifications() {
 			log.Printf("kafka rebalanced:%v\n", note)
@@ -35,7 +79,6 @@ func SetOffsetToNewest(brokers []string, group, topic string) error {
 	//partitions
 	ps, perr := consumer.Partitions(topic)
 	if perr != nil {
-		cconsumer.Close()
 		return perr
 	}
 
@@ -44,21 +87,13 @@ func SetOffsetToNewest(brokers []string, group, topic string) error {
 		log.Printf("Read message from partition %d ...\n", pid)
 		pconsumer, err := consumer.ConsumePartition(topic, pid, sarama.OffsetNewest)
 		if err != nil {
-			cconsumer.Close()
 			log.Fatalf("Read message from partition %d err: %v", pid, err)
 			continue
 		}
-		defer pconsumer.Close()
 
 		msg := <-pconsumer.Messages()
 		log.Printf("Reset %d partition offset %d\n", pid, msg.Offset)
 		cconsumer.MarkOffset(msg, "kafka-tool-reset-offset")
-	}
-
-	// time.Sleep(time.Minute * 10)
-	err3 := cconsumer.Close()
-	if err3 != nil {
-		return err3
 	}
 
 	for err := range cconsumer.Errors() {
