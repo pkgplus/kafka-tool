@@ -6,10 +6,10 @@ import (
 	"log"
 )
 
-func GetNewestOffset(brokers []string, group, topic string) error {
+func GetNewestOffset(brokers []string, group, topic string) ([]int64, error) {
 	client, client_err := cluster.NewClient(brokers, nil)
 	if client_err != nil {
-		return client_err
+		return nil, client_err
 	}
 	defer client.Close()
 
@@ -17,8 +17,10 @@ func GetNewestOffset(brokers []string, group, topic string) error {
 	parts, err := client.Partitions(topic)
 	if err != nil {
 		log.Printf("read %s partitions error:%v\n", topic, err)
-		return err
+		return nil, err
 	}
+
+	offsets := make([]int64, len(parts))
 	for _, pid := range parts {
 		broker, err := client.Leader(topic, pid)
 		if err != nil {
@@ -41,11 +43,11 @@ func GetNewestOffset(brokers []string, group, topic string) error {
 
 		//dump response
 		for pid, block := range oResp.Blocks[topic] {
-			log.Printf("%s\t%d\t%d\n", topic, pid, block.Offsets[0])
+			offsets[pid] = block.Offsets[0]
 		}
 	}
 
-	return nil
+	return offsets, nil
 }
 
 func SetOffsetToNewest(brokers []string, group, topic string) error {

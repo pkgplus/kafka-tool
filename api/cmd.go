@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	sarama "gopkg.in/Shopify/sarama.v1"
+	"log"
 	"regexp"
 )
 
@@ -126,5 +127,14 @@ func (k *KafkaTool) GetNewestOffset() error {
 		return ERR_MISSING_HOST
 	}
 
-	return GetNewestOffset(k.Brokers, k.Group, k.Topic)
+	offsets, err := GetNewestOffset(k.Brokers, k.Group, k.Topic)
+	if err != nil {
+		return err
+	}
+
+	for pid, offset := range offsets {
+		log.Printf("%s\t%d\t%d\n", k.Topic, pid, offset)
+	}
+
+	return nil
 }
