@@ -15,10 +15,10 @@ var (
 )
 
 func init() {
-	command = flag.String("cmd", "consumer", "command")
+	command = flag.String("cmd", "consumer", "command, eg: consumer/copy/offset")
 	host = flag.String("host", "", "brokerlist/topic")
 	remote = flag.String("remote", "", "brokerlist/topic, on using command \"copy\"")
-	filter = flag.String("filter", "", "the filter when copy string")
+	filter = flag.String("filter", "", "the filter on copy string")
 	group = flag.String("group", "", "the consumer group")
 	ifPrint = flag.Bool("print", false, "printflag")
 	begin = flag.Bool("begin", false, "consume from begin")

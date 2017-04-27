@@ -11,11 +11,11 @@ go get github.com/xuebing1110/kafka-tool
 
 ## Usage
 ```bash
-Usage of kafka-tool:
+Usage of ./kafka-tool:
   -begin
         consume from begin
   -cmd string
-        command (default "consumer")
+        command, eg: consumer/copy/offset (default "consumer")
   -filter string
         the filter when copy string
   -group string
@@ -43,5 +43,8 @@ kafka-tool -host 127.0.0.1:9092/mytopic -begin
 
 ## copy topic to another topic
 ./kafka-tool -cmd copy -host 127.0.0.1:9092/mytopic1  -remote 127.0.0.1:9092/mytopic2
+
+## dump the newest offset
+./kafka-tool -cmd offset -host 127.0.0.1:9092/mytopic1
 
 ```
