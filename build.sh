@@ -1,5 +1,5 @@
 #!/bin/bash
-version=0.0.2
+version=0.0.3
 mkdir -p bin/$version
 export CGO_ENABLED=0
 
