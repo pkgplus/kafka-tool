@@ -1,12 +1,14 @@
 package api
 
 import (
-	sarama "gopkg.in/Shopify/sarama.v1"
-	cluster "gopkg.in/bsm/sarama-cluster.v2"
 	"log"
+	// "math"
+
+	sarama "github.com/Shopify/sarama"
+	cluster "github.com/bsm/sarama-cluster"
 )
 
-func GetNewestOffset(brokers []string, group, topic string) ([]int64, error) {
+func GetNewestOffset(brokers []string, topic string) ([]int64, error) {
 	client, client_err := cluster.NewClient(brokers, nil)
 	if client_err != nil {
 		return nil, client_err
@@ -103,4 +105,80 @@ func SetOffsetToNewest(brokers []string, group, topic string) error {
 	}
 
 	return nil
+}
+
+func GetGroupOffset(brokers []string, group string) (map[string]map[int32]*sarama.OffsetFetchResponseBlock, error) {
+	client, client_err := sarama.NewClient(brokers, nil)
+	if client_err != nil {
+		return nil, client_err
+	}
+	defer client.Close()
+
+	result := make(map[string]map[int32]*sarama.OffsetFetchResponseBlock)
+	for _, broker := range client.Brokers() {
+		// log.Printf("connecting %s ...", broker.Addr())
+
+		err := broker.Open(nil)
+		if err != nil {
+			log.Printf("ERR connect %s failed: %v", broker.Addr(), err)
+			continue
+		}
+
+		fetch_req := &sarama.OffsetFetchRequest{
+			ConsumerGroup: group,
+			Version:       1,
+		}
+		resp, err := broker.FetchOffset(fetch_req)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(resp.Blocks) > 0 {
+			for topic, partitions := range resp.Blocks {
+				data, found := result[topic]
+				if found {
+					for pid, offset_info := range partitions {
+						data[pid] = offset_info
+					}
+				} else {
+					result[topic] = partitions
+				}
+			}
+		}
+	}
+
+	// topic = "__consumer_offsets"
+
+	// // __consumer_offsets partitions
+	// co_pids, err := consumer.Partitions(topic)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// // __consumer_offsets partition
+	// co_pid := math.Abs(float64(HashCode(group)) % len(co_pids))
+	// consumer.ConsumePartition(topic, co_pid, offset)
+	return result, nil
+}
+
+func HashCode(in string) int32 {
+
+	// Initialize output
+	var hash int32
+
+	// Empty string has a hashcode of 0
+	if len(in) == 0 {
+		return hash
+	}
+
+	// Convert string into slice of bytes
+	b := []byte(in)
+
+	// Build hash
+	for i := range b {
+		char := b[i]
+		hash = ((hash << 5) - hash) + int32(char)
+	}
+
+	return hash
 }

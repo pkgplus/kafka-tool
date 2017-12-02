@@ -40,12 +40,14 @@ func main() {
 
 	//host
 	brokers_topic := strings.SplitN(*host, "/", 2)
-	if len(brokers_topic) != 2 {
+	if len(brokers_topic) == 0 {
 		flag.Usage()
 		os.Exit(1)
 	}
 	kafkaTool.Brokers = strings.Split(brokers_topic[0], ",")
-	kafkaTool.Topic = brokers_topic[1]
+	if len(brokers_topic) == 2 {
+		kafkaTool.Topic = brokers_topic[1]
+	}
 
 	//remote
 	if *remote != "" {

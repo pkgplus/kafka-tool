@@ -1,7 +1,7 @@
 package api
 
 import (
-	sarama "gopkg.in/Shopify/sarama.v1"
+	sarama "github.com/Shopify/sarama"
 )
 
 func InitKafkaProducer(brokers []string) (producer sarama.AsyncProducer, err error) {

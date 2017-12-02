@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	sarama "gopkg.in/Shopify/sarama.v1"
+	sarama "github.com/Shopify/sarama"
 	"log"
 	"regexp"
 	"sync"

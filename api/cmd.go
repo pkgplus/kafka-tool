@@ -2,7 +2,7 @@ package api
 
 import (
 	"errors"
-	sarama "gopkg.in/Shopify/sarama.v1"
+	sarama "github.com/Shopify/sarama"
 	"log"
 	"regexp"
 )
@@ -61,7 +61,8 @@ func (k *KafkaTool) Start() (err error) {
 	case CMD_RESETOFFSET:
 		err = k.SetOffsetToNewest()
 	case CMD_OFFSET:
-		err = k.GetNewestOffset()
+		// err = k.GetNewestOffset()
+		err = k.GetGroupOffset()
 	default:
 		err = errors.New("unknown command: " + k.Command)
 	}
@@ -127,13 +128,51 @@ func (k *KafkaTool) GetNewestOffset() error {
 		return ERR_MISSING_HOST
 	}
 
-	offsets, err := GetNewestOffset(k.Brokers, k.Group, k.Topic)
+	offsets, err := GetNewestOffset(k.Brokers, k.Topic)
 	if err != nil {
 		return err
 	}
 
 	for pid, offset := range offsets {
 		log.Printf("%s\t%d\t%d\n", k.Topic, pid, offset)
+	}
+
+	return nil
+}
+
+func (k *KafkaTool) GetGroupOffset() error {
+	if len(k.Brokers) == 0 {
+		return ERR_MISSING_HOST
+	}
+
+	if k.Group == "" {
+		return ERR_MISSING_GROUP
+	}
+
+	offsets, err := GetGroupOffset(k.Brokers, k.Group)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("GROUP\tTOPIC\tPARTITION\tCURRENT-OFFSET\tLOG-END-OFFSET\tLAG\tOWNER")
+	for topic, partitions := range offsets {
+		newest_offsets, err := GetNewestOffset(k.Brokers, topic)
+		if err != nil {
+			return err
+		}
+
+		for id, newest_offset := range newest_offsets {
+			pid := int32(id)
+			current_offset := partitions[pid].Offset
+			lag := newest_offset - current_offset
+
+			owner := partitions[pid].Metadata
+			if owner == "" {
+				owner = "NULL"
+			}
+
+			log.Printf("%s\t%s\t%d\t%d\t%d\t%d\t%s", k.Group, topic, pid, current_offset, newest_offset, lag, owner)
+		}
 	}
 
 	return nil
